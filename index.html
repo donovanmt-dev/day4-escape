@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Probability Escape Room — Day 4</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#0a0a1a;font-family:'Press Start 2P',monospace;color:white;min-height:100vh;display:flex;justify-content:center;align-items:flex-start;padding:1rem;}
+#root{width:100%;max-width:700px;}
+.screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:92vh;padding:1.5rem;text-align:center;}
+.hidden{display:none!important;}
+.btn{font-family:'Press Start 2P',monospace;background:#0a0a1a;border:2px solid #f0e040;color:#f0e040;padding:11px 16px;font-size:9px;cursor:pointer;border-radius:4px;margin:5px;line-height:1.9;}
+.btn:hover{background:#1a1a3a;}
+.btn.g{color:#00ff99;border-color:#00ff99;}
+.btn.p{color:#ff6ec7;border-color:#ff6ec7;}
+.opt-btn{font-family:'Press Start 2P',monospace;background:#0a0a1a;border:2px solid #534AB7;color:#ffffff;padding:10px 12px;font-size:9px;cursor:pointer;border-radius:4px;margin:5px;width:100%;text-align:left;line-height:1.9;}
+.opt-btn:hover{background:#1a1a3a;border-color:#f0e040;}
+.opt-btn.correct{border-color:#00ff99;color:#00ff99;background:#001a0d;}
+.opt-btn.wrong{border-color:#ff6ec7;color:#ff6ec7;background:#1a000d;}
+.opt-btn:disabled{cursor:default;}
+.inp{font-family:'Press Start 2P',monospace;background:#0a0a1a;color:#00ff99;border:2px solid #00ff99;padding:8px 10px;font-size:13px;width:180px;text-align:center;border-radius:4px;outline:none;margin-right:8px;}
+.room-bar{display:flex;justify-content:center;gap:8px;margin-bottom:1.2rem;flex-wrap:wrap;}
+.room-pip{width:28px;height:28px;border-radius:50%;border:2px solid #333;display:flex;align-items:center;justify-content:center;font-size:8px;}
+.room-pip.done{background:#00ff99;border-color:#00ff99;color:#000;}
+.room-pip.active{background:#f0e040;border-color:#f0e040;color:#000;}
+.room-pip.locked{background:#0a0a1a;border-color:#333;color:#333;}
+.lives{display:flex;gap:6px;justify-content:center;margin-bottom:0.8rem;}
+.heart{font-size:14px;}
+.q-box{background:#10103a;border:2px solid #534AB7;border-radius:6px;padding:1rem 1.2rem;margin:0.8rem 0;width:100%;text-align:left;}
+.q-label{font-size:8px;color:#888;margin-bottom:0.5rem;}
+.q-text{font-size:10px;color:#fff;line-height:2;}
+.feedback{font-size:9px;min-height:1.5rem;margin:0.4rem 0;line-height:1.8;}
+.door-art{font-size:40px;margin:0.5rem 0;}
+.progress-txt{font-size:8px;color:#888;margin-bottom:0.3rem;}
+</style>
+</head>
+<body>
+<div id="root">
+
+<!-- TITLE SCREEN -->
+<div id="title-screen" class="screen">
+  <p style="font-size:10px;color:#f0e040;margin-bottom:12px;letter-spacing:.1em;">👾 MATH ARCADE · DAY 4 👾</p>
+  <h1 style="font-size:16px;color:#00ff99;line-height:2;margin-bottom:8px;">PROBABILITY<br>ESCAPE ROOM</h1>
+  <p style="font-size:8px;color:#aaa;line-height:2;margin-bottom:24px;">Solve each puzzle to unlock<br>the next door. Escape all 5<br>rooms to win!</p>
+  <p style="font-size:8px;color:#ff6ec7;margin-bottom:20px;">You have ❤️❤️❤️ three lives.</p>
+  <button class="btn g" onclick="startGame('normal')">▶ ON-LEVEL MODE</button>
+  <button class="btn p" onclick="startGame('challenge')">⚡ CHALLENGE MODE</button>
+  <p style="font-size:7px;color:#555;margin-top:16px;">© 1984 MATH ARCADE · ALL RIGHTS RESERVED</p>
+</div>
+
+<!-- GAME SCREEN -->
+<div id="game-screen" class="screen hidden">
+  <div class="room-bar" id="room-bar"></div>
+  <div class="lives" id="lives-display"></div>
+  <p class="progress-txt" id="q-progress"></p>
+
+  <div class="door-art" id="door-art">🔒</div>
+  <p style="font-size:9px;color:#f0e040;margin-bottom:6px;" id="room-title"></p>
+
+  <div class="q-box">
+    <div class="q-label" id="q-label"></div>
+    <div class="q-text" id="q-text"></div>
+  </div>
+
+  <div id="mc-area"></div>
+
+  <div id="input-area" class="hidden" style="margin-top:0.6rem;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px;">
+    <input class="inp" id="typed-ans" placeholder="answer..." onkeydown="if(event.key==='Enter')submitTyped()"/>
+    <button class="btn g" onclick="submitTyped()">SUBMIT</button>
+  </div>
+
+  <div class="feedback" id="feedback"></div>
+  <button class="btn hidden" id="next-btn" onclick="nextQuestion()">NEXT ▶</button>
+</div>
+
+<!-- ROOM CLEAR SCREEN -->
+<div id="room-clear-screen" class="screen hidden">
+  <div style="font-size:48px;margin-bottom:12px;">🔓</div>
+  <p style="font-size:12px;color:#00ff99;margin-bottom:8px;">DOOR UNLOCKED!</p>
+  <p style="font-size:9px;color:#aaa;margin-bottom:24px;" id="clear-msg"></p>
+  <button class="btn g" id="clear-btn">NEXT ROOM ▶</button>
+</div>
+
+<!-- WIN SCREEN -->
+<div id="win-screen" class="screen hidden">
+  <p style="font-size:10px;color:#f0e040;margin-bottom:12px;">🏆 ESCAPED! 🏆</p>
+  <h2 style="font-size:14px;color:#00ff99;line-height:2;margin-bottom:8px;">YOU SOLVED ALL<br>5 ROOMS!</h2>
+  <p style="font-size:8px;color:#aaa;line-height:2;margin-bottom:8px;" id="win-mode-msg"></p>
+  <button class="btn p" onclick="showTitle()">PLAY AGAIN</button>
+</div>
+
+<!-- GAME OVER SCREEN -->
+<div id="gameover-screen" class="screen hidden">
+  <div style="font-size:48px;margin-bottom:12px;">💀</div>
+  <p style="font-size:12px;color:#ff6ec7;margin-bottom:8px;">OUT OF LIVES!</p>
+  <p style="font-size:8px;color:#aaa;line-height:2;margin-bottom:20px;">The doors stay locked...<br>Try again!</p>
+  <button class="btn" onclick="showTitle()">↩ TRY AGAIN</button>
+</div>
+
+</div><!-- end root -->
+
+<script>
+// ─────────────────────────────────────────────
+//  QUESTION BANK
+// ─────────────────────────────────────────────
+
+const ROOMS_NORMAL = [
+  {
+    title: "ROOM 1: THE MARBLE VAULT",
+    door: "🪣",
+    questions: [
+      {
+        type: "mc",
+        label: "THEORETICAL PROBABILITY",
+        text: "A bag has 3 red, 5 blue, and 2 green marbles.\nYou pick one at random.\n\nWhat is P(blue)?",
+        opts: ["A) 1/2", "B) 1/5", "C) 3/10", "D) 5/10"],
+        ans: 0,
+        explain: "5 blue out of 10 total = 5/10 = 1/2"
+      },
+      {
+        type: "mc",
+        label: "THEORETICAL PROBABILITY",
+        text: "Same bag: 3 red, 5 blue, 2 green.\n\nWhat is P(NOT blue)?",
+        opts: ["A) 1/2", "B) 5/10", "C) 3/10", "D) 1/10"],
+        ans: 0,
+        explain: "P(not blue) = 1 - 5/10 = 5/10 = 1/2"
+      },
+      {
+        type: "mc",
+        label: "COMPLEMENT",
+        text: "The probability it will snow tomorrow is 3/8.\n\nWhat is P(no snow)?",
+        opts: ["A) 3/8", "B) 5/8", "C) 1/8", "D) 8/8"],
+        ans: 1,
+        explain: "P(no snow) = 1 - 3/8 = 5/8"
+      },
+    ]
+  },
+  {
+    title: "ROOM 2: THE SPINNER CHAMBER",
+    door: "🎡",
+    questions: [
+      {
+        type: "mc",
+        label: "READING PROBABILITY",
+        text: "A spinner has 8 equal sections:\n3 red, 3 yellow, 2 purple.\n\nWhich color are you LEAST likely to land on?",
+        opts: ["A) Red", "B) Yellow", "C) Purple", "D) Red and Yellow tie"],
+        ans: 2,
+        explain: "Purple has only 2 sections — the fewest — so it is least likely."
+      },
+      {
+        type: "mc",
+        label: "SAMPLE SPACE",
+        text: "You flip a coin AND spin a 3-section spinner (A, B, C).\n\nHow many total outcomes are in the sample space?",
+        opts: ["A) 3", "B) 5", "C) 6", "D) 8"],
+        ans: 2,
+        explain: "2 coin outcomes x 3 spinner sections = 6 total outcomes"
+      },
+      {
+        type: "mc",
+        label: "SAMPLE SPACE",
+        text: "You flip a coin AND spin a 3-section spinner (A, B, C).\n\nWhat is P(Heads AND section B)?",
+        opts: ["A) 1/2", "B) 1/3", "C) 1/5", "D) 1/6"],
+        ans: 3,
+        explain: "(H, B) is 1 out of 6 equally likely outcomes = 1/6"
+      },
+    ]
+  },
+  {
+    title: "ROOM 3: THE EXPERIMENT LAB",
+    door: "🧪",
+    questions: [
+      {
+        type: "mc",
+        label: "EXPERIMENTAL PROBABILITY",
+        text: "Sofia spun a spinner 20 times.\nShe landed on blue 5 times.\n\nWhat is the experimental P(blue)?",
+        opts: ["A) 1/5", "B) 5/20", "C) 1/4", "D) Both B and C"],
+        ans: 3,
+        explain: "5/20 = 1/4. Both B and C are correct — they are the same fraction."
+      },
+      {
+        type: "mc",
+        label: "EXPERIMENTAL vs THEORETICAL",
+        text: "The spinner from the last question has 4 equal sections.\n\nWhat is the THEORETICAL P(blue)?",
+        opts: ["A) 1/4", "B) 1/5", "C) 5/20", "D) 1/2"],
+        ans: 0,
+        explain: "1 blue section out of 4 equal sections = 1/4"
+      },
+      {
+        type: "mc",
+        label: "COMPARING PROBABILITIES",
+        text: "Experimental P(blue) = 1/4\nTheoretical P(blue) = 1/4\n\nSofia says: 'They match, so my spinner must be fair.'\nIs Sofia correct?",
+        opts: ["A) Yes — matching results proves fairness", "B) No — one experiment is not enough to prove fairness", "C) Yes — 20 trials is always enough", "D) No — experimental probability is always wrong"],
+        ans: 1,
+        explain: "You need many more trials. One experiment matching doesn't prove fairness."
+      },
+    ]
+  },
+  {
+    title: "ROOM 4: THE COMPOUND CORRIDOR",
+    door: "🔗",
+    questions: [
+      {
+        type: "mc",
+        label: "INDEPENDENT EVENTS",
+        text: "A bag has 3 marbles: red, blue, green.\nYou pick one, REPLACE it, then pick again.\n\nAre the two picks independent events?",
+        opts: ["A) Yes — replacing means the second pick is unaffected", "B) No — the first pick changes the bag", "C) Only if you pick the same color twice", "D) It depends on which color you pick"],
+        ans: 0,
+        explain: "Because you replace the marble, the bag is the same for each pick — independent."
+      },
+      {
+        type: "mc",
+        label: "COMPOUND PROBABILITY",
+        text: "Bag: red, blue, green (3 marbles total).\nPick one, replace, pick again.\n\nWhat is P(red, then red)?",
+        opts: ["A) 1/3", "B) 2/3", "C) 1/6", "D) 1/9"],
+        ans: 3,
+        explain: "P(red) x P(red) = 1/3 x 1/3 = 1/9"
+      },
+      {
+        type: "mc",
+        label: "COMPOUND PROBABILITY",
+        text: "A spinner has 3 equal sections: 1, 2, 3.\nYou spin it twice.\n\nWhat is P(landing on 2, then landing on 2)?",
+        opts: ["A) 2/3", "B) 1/3", "C) 1/6", "D) 1/9"],
+        ans: 3,
+        explain: "P(2) x P(2) = 1/3 x 1/3 = 1/9"
+      },
+    ]
+  },
+  {
+    title: "ROOM 5: THE PREDICTION VAULT",
+    door: "🏆",
+    questions: [
+      {
+        type: "mc",
+        label: "PROBABILITY & PREDICTION",
+        text: "The probability of winning a carnival game is 1/4.\n\nIf 80 people play, how many would you EXPECT to win?",
+        opts: ["A) 4", "B) 10", "C) 20", "D) 40"],
+        ans: 2,
+        explain: "Expected winners = 80 x 1/4 = 20"
+      },
+      {
+        type: "mc",
+        label: "PROBABILITY & PREDICTION",
+        text: "A bag has 1 red, 1 blue, 1 green, 1 yellow tile.\nYou pick one and replace it each time.\n\nIf you do this 80 times, how many times\nwould you EXPECT to pick red?",
+        opts: ["A) 4", "B) 10", "C) 20", "D) 40"],
+        ans: 2,
+        explain: "P(red) = 1/4. Expected = 80 x 1/4 = 20"
+      },
+      {
+        type: "mc",
+        label: "INTERPRETING RESULTS",
+        text: "Expected red picks = 20 out of 80.\nActual result: red came up 15 times.\n\nWhich statement is BEST?",
+        opts: ["A) The bag must be broken — results should be exactly 20", "B) This is normal — experimental results vary from theoretical", "C) You should get exactly 20 every time with 80 trials", "D) The theoretical probability must be wrong"],
+        ans: 1,
+        explain: "Experimental results vary. 15 is close to 20 and is completely normal."
+      },
+    ]
+  },
+];
+
+const ROOMS_CHALLENGE = [
+  {
+    title: "ROOM 1: THE PROBABILITY VAULT",
+    door: "🪣",
+    questions: [
+      {
+        type: "typed",
+        label: "THEORETICAL PROBABILITY",
+        text: "A bag has 4 red, 6 blue, and 2 yellow tiles (12 total).\n\nWhat is P(NOT red)?\nEnter as a simplified fraction (e.g. 2/3)",
+        ans: ["2/3"],
+        explain: "Not red = 6+2 = 8 tiles. P(not red) = 8/12 = 2/3"
+      },
+      {
+        type: "mc",
+        label: "COMPLEMENT IN CONTEXT",
+        text: "A game show contestant has a 2/5 chance of winning.\nShe plays the game 3 times.\n\nWhat is the probability she does NOT win on her first try?",
+        opts: ["A) 2/5", "B) 1/5", "C) 3/5", "D) 3/15"],
+        ans: 2,
+        explain: "P(not win) = 1 - 2/5 = 3/5. The number of times she plays doesn't change a single game's probability."
+      },
+      {
+        type: "typed",
+        label: "PROBABILITY FROM A TABLE",
+        text: "A class survey:\n- 12 students walk to school\n- 8 ride the bus\n- 5 get dropped off\n\nIf one student is chosen at random, what is P(walks or rides bus)?\nEnter as a simplified fraction.",
+        ans: ["4/5", "20/25"],
+        explain: "Walk + bus = 12+8 = 20 out of 25 total. 20/25 = 4/5"
+      },
+    ]
+  },
+  {
+    title: "ROOM 2: THE SAMPLE SPACE LAB",
+    door: "🎡",
+    questions: [
+      {
+        type: "typed",
+        label: "COUNTING OUTCOMES",
+        text: "A student picks:\n- 1 of 3 sandwiches (turkey, tuna, veggie)\n- 1 of 2 drinks (water, juice)\n- 1 of 2 snacks (chips, fruit)\n\nHow many total meal combinations are possible?",
+        ans: ["12"],
+        explain: "3 x 2 x 2 = 12 total combinations"
+      },
+      {
+        type: "mc",
+        label: "SAMPLE SPACE",
+        text: "You roll a number cube (1-6) and flip a coin.\n\nWhat is P(rolling an even number AND getting tails)?",
+        opts: ["A) 1/4", "B) 1/6", "C) 3/12", "D) Both A and C"],
+        ans: 3,
+        explain: "P(even) = 3/6 = 1/2. P(tails) = 1/2. P(both) = 1/2 x 1/2 = 1/4 = 3/12"
+      },
+      {
+        type: "typed",
+        label: "TREE DIAGRAM REASONING",
+        text: "A restaurant offers 2 soups and 4 entrees.\nA new dessert menu adds 3 choices.\n\nHow many total 3-course meals are now possible?",
+        ans: ["24"],
+        explain: "2 x 4 x 3 = 24 total 3-course meals"
+      },
+    ]
+  },
+  {
+    title: "ROOM 3: THE EXPERIMENT CHAMBER",
+    door: "🧪",
+    questions: [
+      {
+        type: "typed",
+        label: "EXPERIMENTAL PROBABILITY",
+        text: "Marcus rolled a number cube 60 times.\nHe rolled a 3 exactly 8 times.\n\nWhat is the experimental P(rolling a 3)?\nEnter as a simplified fraction.",
+        ans: ["2/15"],
+        explain: "8/60 = 2/15"
+      },
+      {
+        type: "mc",
+        label: "COMPARING PROBABILITIES",
+        text: "Experimental P(rolling a 3) = 2/15\nTheoretical P(rolling a 3) = 1/6\n\nConvert both to the same denominator and compare.\nWhich is greater?",
+        opts: ["A) 2/15 > 1/6  (experimental is greater)", "B) 1/6 > 2/15  (theoretical is greater)", "C) They are equal", "D) You cannot compare fractions with different denominators"],
+        ans: 1,
+        explain: "2/15 = 4/30. 1/6 = 5/30. So 1/6 > 2/15 — the theoretical probability is greater."
+      },
+      {
+        type: "mc",
+        label: "LAW OF LARGE NUMBERS",
+        text: "If Marcus rolled the cube 6,000 times instead of 60,\nwhat would you expect to happen to his experimental probability?",
+        opts: ["A) It would stay exactly at 2/15 forever", "B) It would get closer to the theoretical probability of 1/6", "C) It would become less accurate with more trials", "D) More trials always makes experimental probability exactly equal to theoretical"],
+        ans: 1,
+        explain: "The Law of Large Numbers: more trials brings experimental probability closer to theoretical."
+      },
+    ]
+  },
+  {
+    title: "ROOM 4: THE INDEPENDENCE VAULT",
+    door: "🔗",
+    questions: [
+      {
+        type: "typed",
+        label: "COMPOUND PROBABILITY",
+        text: "A bag has 2 red and 3 blue marbles.\nYou pick one, replace it, pick again.\n\nWhat is P(red, then blue)?\nEnter as a simplified fraction.",
+        ans: ["6/25"],
+        explain: "P(red) = 2/5. P(blue) = 3/5. P(both) = 2/5 x 3/5 = 6/25"
+      },
+      {
+        type: "mc",
+        label: "DEPENDENT vs INDEPENDENT",
+        text: "A bag has 4 tiles: R, B, G, Y.\nYou pick one and DO NOT replace it, then pick again.\n\nIs P(Red, then Blue) the same as when you replace?",
+        opts: ["A) Yes — the tiles don't change", "B) No — without replacing, the second pick has fewer choices", "C) Yes — as long as you pick randomly", "D) No — you can never calculate it without replacing"],
+        ans: 1,
+        explain: "Without replacing: first pick = 1/4, second pick = 1/3 (only 3 left). P = 1/4 x 1/3 = 1/12, not 1/16."
+      },
+      {
+        type: "typed",
+        label: "COMPOUND PROBABILITY",
+        text: "You spin a spinner with 4 equal sections (1,2,3,4) twice.\n\nWhat is P(spinning 1, then spinning an even number)?\nEnter as a simplified fraction.",
+        ans: ["1/8", "2/16"],
+        explain: "P(1) = 1/4. P(even) = 2/4 = 1/2. P(both) = 1/4 x 1/2 = 1/8"
+      },
+    ]
+  },
+  {
+    title: "ROOM 5: THE FINAL VAULT",
+    door: "🏆",
+    questions: [
+      {
+        type: "typed",
+        label: "PROBABILITY & PREDICTION",
+        text: "A bag has 1 red, 1 blue, 1 green, 1 yellow tile.\nYou pick and replace 120 times.\n\nHow many times would you EXPECT to pick red or blue?",
+        ans: ["60"],
+        explain: "P(red or blue) = 2/4 = 1/2. Expected = 120 x 1/2 = 60"
+      },
+      {
+        type: "mc",
+        label: "MULTI-STEP PREDICTION",
+        text: "A carnival game: spin a 4-section spinner (WIN on 1 section).\nAND draw a card from a bag of 5 (1 is gold).\n\nIf 100 people play, how many would you expect to win?",
+        opts: ["A) 4", "B) 5", "C) 20", "D) 25"],
+        ans: 1,
+        explain: "P(win spinner) = 1/4. P(gold card) = 1/5. P(both) = 1/20. Expected = 100 x 1/20 = 5"
+      },
+      {
+        type: "mc",
+        label: "REASONING ABOUT FAIRNESS",
+        text: "P(winning the game) = 1/20.\n\nA ticket costs $1. The prize is worth $15.\nIs this game worth playing?",
+        opts: ["A) Yes — $15 prize is more than $1 ticket", "B) No — you'd expect to spend $20 on tickets to win once, but the prize is only $15", "C) Yes — someone has to win eventually", "D) No — probability games are never worth playing"],
+        ans: 1,
+        explain: "Expected cost to win once = 20 tickets x $1 = $20. Prize = $15. You'd lose $5 on average."
+      },
+    ]
+  },
+];
+
+// ─────────────────────────────────────────────
+//  GAME STATE
+// ─────────────────────────────────────────────
+let mode, rooms, roomIdx, qIdx, lives, answered;
+
+function startGame(m) {
+  mode = m;
+  rooms = m === 'normal' ? ROOMS_NORMAL : ROOMS_CHALLENGE;
+  roomIdx = 0; qIdx = 0; lives = 3; answered = false;
+  showScreen('game-screen');
+  renderRoom();
+}
+
+function renderRoom() {
+  qIdx = 0;
+  renderRoomBar();
+  loadQuestion();
+}
+
+function renderRoomBar() {
+  const bar = document.getElementById('room-bar');
+  bar.innerHTML = '';
+  rooms.forEach((r, i) => {
+    const pip = document.createElement('div');
+    pip.className = 'room-pip ' + (i < roomIdx ? 'done' : i === roomIdx ? 'active' : 'locked');
+    pip.textContent = i < roomIdx ? '✓' : (i + 1);
+    bar.appendChild(pip);
+  });
+}
+
+function loadQuestion() {
+  answered = false;
+  const room = rooms[roomIdx];
+  const q = room.questions[qIdx];
+
+  document.getElementById('door-art').textContent = qIdx === room.questions.length - 1 ? '🔒' : '🚪';
+  document.getElementById('room-title').textContent = room.title;
+  document.getElementById('q-progress').textContent = 'QUESTION ' + (qIdx + 1) + ' OF ' + room.questions.length;
+  document.getElementById('q-label').textContent = q.label;
+  document.getElementById('q-text').textContent = q.text;
+  document.getElementById('feedback').textContent = '';
+  document.getElementById('feedback').style.color = '';
+  document.getElementById('next-btn').classList.add('hidden');
+
+  renderLives();
+
+  const mcArea = document.getElementById('mc-area');
+  const inputArea = document.getElementById('input-area');
+
+  if (q.type === 'mc') {
+    inputArea.classList.add('hidden');
+    mcArea.innerHTML = '';
+    q.opts.forEach((opt, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'opt-btn';
+      btn.textContent = opt;
+      btn.onclick = () => checkMC(i);
+      mcArea.appendChild(btn);
+    });
+  } else {
+    mcArea.innerHTML = '';
+    inputArea.classList.remove('hidden');
+    document.getElementById('typed-ans').value = '';
+    setTimeout(() => document.getElementById('typed-ans').focus(), 100);
+  }
+}
+
+function renderLives() {
+  const el = document.getElementById('lives-display');
+  el.innerHTML = '';
+  for (let i = 0; i < 3; i++) {
+    const h = document.createElement('span');
+    h.className = 'heart';
+    h.textContent = i < lives ? '❤️' : '🖤';
+    el.appendChild(h);
+  }
+}
+
+function checkMC(chosen) {
+  if (answered) return;
+  answered = true;
+  const q = rooms[roomIdx].questions[qIdx];
+  const btns = document.querySelectorAll('.opt-btn');
+  btns.forEach(b => b.disabled = true);
+
+  if (chosen === q.ans) {
+    btns[chosen].classList.add('correct');
+    setFeedback('✅ CORRECT! ' + q.explain, '#00ff99');
+  } else {
+    btns[chosen].classList.add('wrong');
+    btns[q.ans].classList.add('correct');
+    lives--;
+    renderLives();
+    setFeedback('❌ NOT QUITE. ' + q.explain, '#ff6ec7');
+    if (lives <= 0) { setTimeout(gameOver, 1400); return; }
+  }
+  document.getElementById('next-btn').classList.remove('hidden');
+}
+
+function submitTyped() {
+  if (answered) return;
+  const q = rooms[roomIdx].questions[qIdx];
+  const raw = document.getElementById('typed-ans').value.trim().toLowerCase().replace(/\s/g,'');
+  if (!raw) return;
+  answered = true;
+  document.getElementById('typed-ans').disabled = true;
+
+  const correct = q.ans.map(a => a.toLowerCase().replace(/\s/g,'')).includes(raw);
+  if (correct) {
+    setFeedback('✅ CORRECT! ' + q.explain, '#00ff99');
+  } else {
+    lives--;
+    renderLives();
+    setFeedback('❌ NOT QUITE. Answer: ' + q.ans[0] + '. ' + q.explain, '#ff6ec7');
+    if (lives <= 0) { setTimeout(gameOver, 1400); return; }
+  }
+  document.getElementById('next-btn').classList.remove('hidden');
+}
+
+function nextQuestion() {
+  document.getElementById('typed-ans').disabled = false;
+  qIdx++;
+  if (qIdx >= rooms[roomIdx].questions.length) {
+    roomClear();
+  } else {
+    loadQuestion();
+  }
+}
+
+function roomClear() {
+  const isLast = roomIdx === rooms.length - 1;
+  document.getElementById('clear-msg').textContent = isLast
+    ? 'You escaped all 5 rooms!'
+    : 'Room ' + (roomIdx + 1) + ' complete! Next: ' + rooms[roomIdx + 1].title;
+  const btn = document.getElementById('clear-btn');
+  if (isLast) {
+    btn.textContent = '🏆 FINISH';
+    btn.onclick = winGame;
+  } else {
+    btn.textContent = 'NEXT ROOM ▶';
+    btn.onclick = () => { roomIdx++; renderRoomBar(); showScreen('game-screen'); renderRoom(); };
+  }
+  showScreen('room-clear-screen');
+}
+
+function winGame() {
+  document.getElementById('win-mode-msg').textContent =
+    mode === 'challenge' ? 'Challenge mode complete!\nYou are a probability master.' : 'Try Challenge Mode next!';
+  showScreen('win-screen');
+}
+
+function gameOver() { showScreen('gameover-screen'); }
+function showTitle() { showScreen('title-screen'); }
+
+function setFeedback(msg, color) {
+  const el = document.getElementById('feedback');
+  el.textContent = msg;
+  el.style.color = color;
+}
+
+function showScreen(id) {
+  ['title-screen','game-screen','room-clear-screen','win-screen','gameover-screen']
+    .forEach(s => document.getElementById(s).classList.toggle('hidden', s !== id));
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const nb = document.getElementById('next-btn');
+    if (!nb.classList.contains('hidden')) { nextQuestion(); return; }
+    if (!document.getElementById('input-area').classList.contains('hidden')) submitTyped();
+  }
+});
+</script>
+</body>
+</html>
